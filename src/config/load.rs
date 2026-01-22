@@ -49,12 +49,20 @@ pub fn load(cli: &Cli) -> Result<ArcRuntime, Error> {
         dns_table,
     });
 
-    // watch rules
-    if !cli.test && !cli.disable_watch {
-        watch(runtime.clone(), config_dir);
-    }
-
+    // Note: watcher must be started after Tokio runtime is created via start_watch()
     Ok(runtime)
+}
+
+/// Start watching config files for hot-reload.
+/// Must be called from within a Tokio runtime context.
+pub fn start_watch(runtime: ArcRuntime, path: String) {
+    let rt_handle = tokio::runtime::Handle::current();
+
+    let config_file = config_path(&path);
+    let mut config_dir = PathBuf::from(config_file.parent().unwrap());
+    config_dir.push("config.d");
+
+    watch(runtime, config_dir, rt_handle);
 }
 
 fn config_path(file: &str) -> PathBuf {
@@ -134,7 +142,7 @@ fn load_rule_config_file(rule_file: PathBuf) -> Result<Option<Vec<RuleConfig>>, 
     Ok(configs)
 }
 
-fn watch(runtime: ArcRuntime, rules_dir: PathBuf) {
+fn watch(runtime: ArcRuntime, rules_dir: PathBuf, rt_handle: tokio::runtime::Handle) {
     debug!("watch dir: {:?}", &rules_dir);
 
     let dir = rules_dir.clone();
@@ -146,7 +154,9 @@ fn watch(runtime: ArcRuntime, rules_dir: PathBuf) {
 
                 if ev.path.file_name().eq(&Some(OsStr::new("hosts"))) {
                     info!("reload hosts: {:?}", ev.path);
-                    if let Err(e) = reload_hosts(runtime.clone(), ev.path.clone()) {
+                    if let Err(e) =
+                        reload_hosts(runtime.clone(), ev.path.clone(), rt_handle.clone())
+                    {
                         error!("load hosts error: {:?}", e);
                     }
                 }
@@ -155,7 +165,9 @@ fn watch(runtime: ArcRuntime, rules_dir: PathBuf) {
                     && (ext == "yaml" || ext == "yml")
                 {
                     info!("reload rules");
-                    if let Err(e) = reload_rules(runtime.clone(), rules_dir.clone()) {
+                    if let Err(e) =
+                        reload_rules(runtime.clone(), rules_dir.clone(), rt_handle.clone())
+                    {
                         error!("load rules error: {:?}", e);
                     }
                     return;
@@ -185,25 +197,29 @@ fn watch(runtime: ArcRuntime, rules_dir: PathBuf) {
     WATCHERS.lock().unwrap().push(debouncer);
 }
 
-fn reload_hosts(runtime: ArcRuntime, host_file: PathBuf) -> Result<(), Error> {
+fn reload_hosts(
+    runtime: ArcRuntime,
+    host_file: PathBuf,
+    rt_handle: tokio::runtime::Handle,
+) -> Result<(), Error> {
     let hosts = load_hosts_file(host_file)?;
 
     runtime.hosts.store(Arc::new(hosts));
     // Use block_in_place to call async clear() from sync context
-    tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(runtime.dns_table.clear())
-    });
+    tokio::task::block_in_place(|| rt_handle.block_on(runtime.dns_table.clear()));
     Ok(())
 }
 
-fn reload_rules(runtime: ArcRuntime, rules_dir: PathBuf) -> Result<(), Error> {
+fn reload_rules(
+    runtime: ArcRuntime,
+    rules_dir: PathBuf,
+    rt_handle: tokio::runtime::Handle,
+) -> Result<(), Error> {
     let configs = load_all_rule_configs(rules_dir)?;
 
     runtime.rules.reload(configs)?;
     // Use block_in_place to call async clear() from sync context
-    tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(runtime.dns_table.clear())
-    });
+    tokio::task::block_in_place(|| rt_handle.block_on(runtime.dns_table.clear()));
     Ok(())
 }
 

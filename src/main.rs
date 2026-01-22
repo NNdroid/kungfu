@@ -54,6 +54,11 @@ fn main() {
     let metrics_addr = runtime.setting.metrics.clone();
 
     rt.block_on(async move {
+        // Start config watcher inside the runtime context
+        if !cli.disable_watch {
+            config::start_watch(runtime.clone(), cli.config.clone());
+        }
+
         join!(
             gateway::serve(runtime.clone()),
             dns::serve(runtime.clone()),
