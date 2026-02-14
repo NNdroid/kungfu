@@ -96,7 +96,10 @@ src/
 │   ├── server.rs     # TUN device setup and packet handling
 │   ├── nat.rs        # NAT table for connection tracking
 │   ├── proxy.rs      # SOCKS5 proxy connection management
-│   └── relay_tcp.rs  # TCP relay between TUN and proxy
+│   ├── relay_tcp.rs  # TCP relay between TUN and proxy
+│   ├── relay_udp.rs  # UDP relay via SOCKS5 UDP ASSOCIATE
+│   ├── common.rs     # Shared utilities (proxy selection, target lookup)
+│   └── stats.rs      # Traffic metrics for Prometheus
 └── rule/             # Rule matching logic
     ├── mod.rs
     ├── config.rs     # Rule configuration structures
@@ -214,7 +217,7 @@ cdn.my-app.com.a.bdydns.com.  cdn.my-app.com  # CNAME
 
 ## Performance Considerations
 
-- **Release Profile**: Highly optimized (`opt-level = 'z'`, LTO, single codegen unit)
+- **Release Profile**: Highly optimized (`opt-level = 3`, LTO, single codegen unit, strip symbols)
 - **Caching**: Uses `moka` sync cache for DNS table lookups
 - **Parallel Matching**: Rule matching parallelized with Rayon
 - **Target Performance**: >120k QPS (as measured on AMD 5600G)
