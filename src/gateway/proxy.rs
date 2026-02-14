@@ -1,5 +1,6 @@
 use anyhow::{Error, anyhow};
 use fast_socks5::client::{Config, Socks5Stream};
+use std::time::Duration;
 use tokio::net::TcpStream;
 use url::Url;
 
@@ -11,7 +12,7 @@ pub async fn open_proxy(proxy: String, target: &str, target_port: u16) -> Result
     let proxy = format!("{host}:{port}");
 
     let mut config = Config::default();
-    config.set_connect_timeout(5);
+    config.set_connect_timeout(Duration::from_secs(5));
 
     let target_addr = target.to_string();
 
