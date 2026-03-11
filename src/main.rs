@@ -1,4 +1,4 @@
-#![feature(test)]
+#![cfg_attr(test, feature(test))]
 
 #[macro_use]
 extern crate lazy_static;

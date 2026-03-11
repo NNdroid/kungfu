@@ -20,7 +20,7 @@ use url::Url;
 use super::{common, nat::Session};
 use crate::{gateway::stats, runtime::ArcRuntime};
 
-const UDP_BUFFER_SIZE: usize = 1500;
+const UDP_BUFFER_SIZE: usize = 4096;
 const UDP_ASSOCIATE_TIMEOUT: Duration = Duration::from_secs(5);
 const UDP_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5);
 const UDP_ASSOCIATION_TTL: Duration = Duration::from_secs(20);

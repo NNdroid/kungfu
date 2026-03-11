@@ -13,7 +13,7 @@ use pnet::packet::{
 };
 use std::{
     io::Error,
-    net::Ipv4Addr,
+    net::{Ipv4Addr, TcpListener},
     process::{self, Command},
     str::FromStr,
     sync::Arc,
@@ -53,8 +53,8 @@ impl Gateway {
             IpNet::V6(_) => panic!("IPv6 not supported yet"),
         };
 
-        let relay_port = std::net::TcpListener::bind("127.0.0.1:0")
-            .expect("Failed to bind to random port")
+        let relay_listener = TcpListener::bind("0.0.0.0:0").expect("Failed to bind relay listener");
+        let relay_port = relay_listener
             .local_addr()
             .expect("Failed to get local address")
             .port();
@@ -63,11 +63,7 @@ impl Gateway {
         let tcp_nat = Arc::new(Nat::new(Type::Tcp, None));
         let udp_nat = Arc::new(Nat::new(Type::Udp, Some(tx)));
         let udp_relay = UdpRelay::new(runtime.clone(), rx);
-        let tcp_relay = TcpRelay::new(
-            runtime.clone(),
-            format!("{}:{}", network.addr(), relay_port),
-            tcp_nat.clone(),
-        );
+        let tcp_relay = TcpRelay::new(runtime.clone(), relay_listener, tcp_nat.clone());
 
         Self {
             runtime,

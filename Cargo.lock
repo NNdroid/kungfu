@@ -1183,6 +1183,7 @@ dependencies = [
  "rayon",
  "serde",
  "serde_yaml",
+ "socket2 0.6.2",
  "tokio",
  "tun-rs",
  "url",
